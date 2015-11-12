@@ -1,0 +1,4 @@
+User-Pluggin Shell, for CS 485: Systems Programming.
+
+Should dynamically link 'pluggins' into a shell, and execute/reap children
+properly. 
