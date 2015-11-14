@@ -1,0 +1,12 @@
+Please post this pluggin on the public CS 485 web page.
+
+Command:
+    batman
+        
+    A program for all your Batman needs.
+
+Usage:
+    batman
+        -without any parameters 
+    batman N
+        -Assumes N is an integer.

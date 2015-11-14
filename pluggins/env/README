@@ -1,1 +1,13 @@
-Pluggin for setting and unsetting environment variables.
+Please post this pluggin on the public CS 485 web page.
+
+Command:
+    env -[sug] -[n] VAR -[v] VAL
+    
+    Can be used to set, unset, and get environment variables. If 
+    you try to unset a variable that hasn't been set, the request
+    will still succeed.  
+
+Usage:
+    env -s -n VarName -v Value   
+    env -u -n VarName -v Value
+    env -g -n VarName

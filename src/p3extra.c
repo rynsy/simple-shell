@@ -2,7 +2,7 @@
 #include <string.h>
 
 /* Uncomment the following line to see the arguments to the command */
-/* #define P3PARSELINE_DEBUG */
+#define P3PARSELINE_DEBUG
 
 char buf[MAXLINE];   /* A global buffer to store argv tokens in */
                      /* IMPORTANT: Pointers to this buffer are returned to the caller */
