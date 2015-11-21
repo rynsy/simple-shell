@@ -40,19 +40,19 @@ typedef struct sockaddr SA;
 /* $begin rio_t */
 #define RIO_BUFSIZE 8192
 typedef struct {
-    int rio_fd;                /* Descriptor for this internal buf */
-    int rio_cnt;               /* Unread bytes in internal buf */
-    char *rio_bufptr;          /* Next unread byte in internal buf */
-    char rio_buf[RIO_BUFSIZE]; /* Internal buffer */
+        int rio_fd;            /* Descriptor for this internal buf */
+        int rio_cnt;           /* Unread bytes in internal buf */
+        char *rio_bufptr;      /* Next unread byte in internal buf */
+        char rio_buf[RIO_BUFSIZE]; /* Internal buffer */
 } rio_t;
 /* $end rio_t */
 
 /* External variables */
-extern int h_errno;    /* Defined by BIND for DNS errors */ 
+extern int h_errno;    /* Defined by BIND for DNS errors */
 extern char **environ; /* Defined by libc */
 
 /* Misc constants */
-#define	MAXLINE	 8192  /* Max text line length */
+#define MAXLINE  8192  /* Max text line length */
 #define MAXBUF   8192  /* Max I/O buffer size */
 #define LISTENQ  1024  /* Second argument to listen() */
 
@@ -75,7 +75,7 @@ void Setpgid(pid_t pid, pid_t pgid);
 pid_t Getpgrp();
 
 /* Signal wrappers */
-typedef void handler_t(int);
+typedef void handler_t (int);
 handler_t *Signal(int signum, handler_t *handler);
 void Sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
 void Sigemptyset(sigset_t *set);
@@ -90,11 +90,11 @@ ssize_t Read(int fd, void *buf, size_t count);
 ssize_t Write(int fd, const void *buf, size_t count);
 off_t Lseek(int fildes, off_t offset, int whence);
 void Close(int fd);
-int Select(int  n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, 
-	   struct timeval *timeout);
+int Select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
+           struct timeval *timeout);
 int Dup2(int fd1, int fd2);
 void Stat(const char *filename, struct stat *buf);
-void Fstat(int fd, struct stat *buf) ;
+void Fstat(int fd, struct stat *buf);
 
 /* Memory mapping wrappers */
 void *Mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset);
@@ -128,8 +128,8 @@ struct hostent *Gethostbyname(const char *name);
 struct hostent *Gethostbyaddr(const char *addr, int len, int type);
 
 /* Pthreads thread control wrappers */
-void Pthread_create(pthread_t *tidp, pthread_attr_t *attrp, 
-		    void * (*routine)(void *), void *argp);
+void Pthread_create(pthread_t *tidp, pthread_attr_t *attrp,
+                    void * (*routine)(void *), void *argp);
 void Pthread_join(pthread_t tid, void **thread_return);
 void Pthread_cancel(pthread_t tid);
 void Pthread_detach(pthread_t tid);
@@ -145,14 +145,14 @@ void V(sem_t *sem);
 /* Rio (Robust I/O) package */
 ssize_t rio_readn(int fd, void *usrbuf, size_t n);
 ssize_t rio_writen(int fd, void *usrbuf, size_t n);
-void rio_readinitb(rio_t *rp, int fd); 
-ssize_t	rio_readnb(rio_t *rp, void *usrbuf, size_t n);
-ssize_t	rio_readlineb(rio_t *rp, void *usrbuf, size_t maxlen);
+void rio_readinitb(rio_t *rp, int fd);
+ssize_t rio_readnb(rio_t *rp, void *usrbuf, size_t n);
+ssize_t rio_readlineb(rio_t *rp, void *usrbuf, size_t maxlen);
 
 /* Wrappers for Rio package */
 ssize_t Rio_readn(int fd, void *usrbuf, size_t n);
 void Rio_writen(int fd, void *usrbuf, size_t n);
-void Rio_readinitb(rio_t *rp, int fd); 
+void Rio_readinitb(rio_t *rp, int fd);
 ssize_t Rio_readnb(rio_t *rp, void *usrbuf, size_t n);
 ssize_t Rio_readlineb(rio_t *rp, void *usrbuf, size_t maxlen);
 
@@ -162,7 +162,7 @@ int open_listenfd(int portno);
 
 /* Wrappers for client/server helper functions */
 int Open_clientfd(char *hostname, int port);
-int Open_listenfd(int port); 
+int Open_listenfd(int port);
 
 #endif /* __CSAPP_H__ */
 /* $end csapp.h */
