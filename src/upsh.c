@@ -76,40 +76,35 @@ int builtin_command(char **argv)
         if (!strcmp(argv[0], "&")) /* Ignore singleton & */
                 return 1;
 
-        if (!strcmp(argv[0], "\%")) /* Ignore singleton & */
+        if (!strcmp(argv[0], "\%")) /* Ignore everything after '% ' */
                 return 1;
 
         if (!strcmp(argv[0], "setprompt")) {
                 if (argv[1] != NULL) {
                         printf("assigning the prompt: %s\n", argv[1]);
                         strcpy(prompt,argv[1]);
-                        return 1;
-                } else {
-                        return 0;
                 }
+                return 1;
         } //endif(setprompt)
 
-        if (!strcmp(argv[0], "cd")) { //TODO need to try to test every case for this
+        if (!strcmp(argv[0], "cd")) {
                 if (argv[1] != NULL) {
                         if (chdir(argv[1]) != 0) {
-                                char currentWD[MAXCWD];
-                                getwd(currentWD);
-                                char* relpath = strcat(currentWD, argv[1]);
-                                if (chdir(relpath) != 0) { //Try that here`
-                                        return 1;
-                                } else {
-                                        printf("Unknown path\n");
-                                        //FIXME I don't think this is ever executing. Needs to render error for unknown path
-                                }
-                        } else {
-                                return 1;
+                                printf("Unknown path: %s\n", argv[1]);
                         }
-                } else {
-                        return 1;
                 }
+                return 1;
         } //endif(cd)
 
-        if (!strmp(argv[0], "loadpluggin")) {
+        if (!strcmp(argv[0], "loadpluggin")) { //I think you export the path to the environment. or something.
+                if (argv[1] != NULL) {
+                    void handle;
+                    handle = dlopen(argv[1], RTLD_LAZY)
+                    if (!handle) {
+                        printf(stderr, "%s\n", dlerror());
+                    }//Then cast a void pointer to access the function. But, I think you just need
+                    //to register all of the paths in the environment. I think.
+                }
                 return 1;
         }
 
