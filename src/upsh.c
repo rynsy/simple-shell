@@ -4,7 +4,10 @@
 /* my globals */
 #define PROMPTSIZE 16
 #define MAXCWD 256
+#define MAXPLUGGINS 20
 char prompt[PROMPTSIZE] = "upsh>";
+void handles[MAXPLUGGINS];
+int pluggins = 0;
 
 /* function prototypes */
 void eval(char *cmdline);
@@ -66,7 +69,8 @@ void eval(char *cmdline)
 
 /* If first arg is a builtin command, run it and return true */
 int builtin_command(char **argv)
-{
+{       //TODO fold all quit commands into one if statement,
+        //add clause to call dlclose() as many times as dlopen() succeeds
         if (!strcmp(argv[0], "quit")) /* quit command */
                 exit(0);
 
@@ -98,15 +102,12 @@ int builtin_command(char **argv)
 
         if (!strcmp(argv[0], "loadpluggin")) { //I think you export the path to the environment. or something.
                 if (argv[1] != NULL) {
-                    void handle;
-                    handle = dlopen(argv[1], RTLD_LAZY)
-                    if (!handle) {
+                    if (!(handles[pluggins++]=dlopen(argv[1], RTLD_LAZY))) {
                         printf(stderr, "%s\n", dlerror());
-                    }//Then cast a void pointer to access the function. But, I think you just need
-                    //to register all of the paths in the environment. I think.
+                    } //TODO check to see if that's the right ++
                 }
                 return 1;
-        }
+        } //endif(loadpluggin)
 
         /* TODO figure out where file redirection fits into all this */
         /* TODO I think for bg you need to return 1, but I have no idea.
@@ -114,9 +115,6 @@ int builtin_command(char **argv)
            and I need some C functions that give me processes and let
            me switch up control. This is probably the hardest part of the
            whole assignment. Needs to use signal() to communicate between procs
-         */
-        /*
-           TODO loadpluggin should use dlsym, dlopen, dlclose
          */
         return 0;                 /* Not a builtin command */
 }
