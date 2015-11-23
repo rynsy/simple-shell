@@ -26,6 +26,7 @@ struct JobList {
     pid_t pid;
     char cmd[MAXLINE];
     int running;
+    int bg;
 } jobs[MAXJOBS];
 
 /* function prototypes */
@@ -61,8 +62,11 @@ void eval(char *cmdline)
         char *argv[MAXARGS];    /* Argument list execve() */
         char buf[MAXLINE];      /* Holds modified command line */
         char cmd[MAXLINE];      /* A temporary buffer for making a pretty command for the jobslist */
-        int bg, i=0;            /* Should the job run in bg or fg? */
+        int bg, i;            /* Should the job run in bg or fg? */
+        int inFile, outFile;    /* file descriptors for redirection */
+        int directIn, directOut; /* flags used to indicate what needs to be redirected */
         signal(SIGCHLD, child_handler); 
+        i = inFile = outFile = directIn = directOut = 0;
 
         while( i < pluggins) {
             pluggin_methods[i] = dlsym(handles[i], "pluggin_method");
@@ -89,28 +93,58 @@ void eval(char *cmdline)
                    strcat(cmd, argv[i]);
                    strcat(cmd, " ");
                    i++; 
-                }
+                }   // make a pretty job title -- job titles are important
                 strcpy(jobs[jobnum].cmd, cmd);
+
+                //check for redirection
+                i = 0;
+                while( argv[i] != NULL && i < MAXARGS ) {
+                    if (!strcmp(argv[i], "<")) {
+                        if(argv[i+1] != NULL) {
+                            directIn = 1;
+                            inFile = Open(argv[i++], O_RDONLY, S_IRUSR);
+                        } else {
+                            unix_error("syntax error: expected '< infilename'");
+                        }
+
+                    } else if (!strcmp(argv[i], ">")) {
+                        if(argv[i+1] != NULL) {
+                            directOut = 1;
+                            outFile = Open(argv[i++], O_CREAT|O_TRUNC|O_RDWR, S_IRUSR|S_IWUSR);
+                        } else {
+                            unix_error("syntax error: expected '> outfilename'");
+                        }
+                    } else {
+                        i++;
+                    }
+                }       //Check for file redirection, set flags, open files
+
                 if ((jobs[jobnum].pid = fork()) == 0) { /* Child runs user job */
-                        if (execve(argv[0], argv, environ) < 0) {
+                    
+                       if(directIn > 0)
+                           Dup2(inFile, 0);
+
+                       if(directOut > 0)
+                           Dup2(outFile, 1);
+                       if (execvp(argv[0], argv) < 0) {
                                 printf("%s: Command not found.\n", argv[0]);
                                 exit(0);
-                        } else {
-                                jobs[jobnum].running = 1;
-                        }
+                       }
+                } else {
+                    jobs[jobnum].running = 1;
+                    jobs[jobnum].bg = bg;
                 }
 
                 /* Parent waits for foreground job to terminate */
                 if (!bg) {
                         int status;
-                        if (waitpid(jobs[jobnum].pid, &status, 0) < 0)
+                        if (waitpid(jobs[jobnum].pid, &status, 0) < 0) {
                                 unix_error("waitfg: waitpid error");
-                }
-                /*else{ TODO probably need to gut this
-                        jobs[jobnum].running = 1;
-                        printf("%d %s", jobs[jobnum].pid, cmdline);
-                        printf("\nThere are currently %d jobs running\n", ++jobnum);
-                }*/   
+                        } 
+                } 
+           
+                if(directIn > 0) Close(inFile);
+                if(directOut > 0) Close(outFile); 
            }
         }
         return;
@@ -139,16 +173,18 @@ void child_handler(int sig)
     pid_t pid = wait(&child_status);
     i = acc = 0;
 
-    while( acc <= jobnum ) {
+    while( i <= jobnum && acc <= MAXJOBS) {
         if(jobs[acc].running > 0)
             i++;
         if(jobs[acc].pid == pid) {
-           sprintf(buf, "\n[%d] %s - Finished\n", i, jobs[acc].cmd); 
-           Write(1, buf, strlen(buf)); 
+           if(jobs[acc].bg) {
+               sprintf(buf, "\n[%d] %s - Finished\n", i, jobs[acc].cmd); 
+               Write(1, buf, strlen(buf));
+           } 
            jobs[acc].running = 0;
            jobnum--;
-           acc = jobnum + 1;        //break out of the loop. kind of a cheap hack
         }
+        acc++;
     }
 }
 
@@ -220,8 +256,7 @@ int builtin_command(char **argv)
             i = acc = 0;
             while( acc <= jobnum ) {
                 if(jobs[acc].running > 0) {
-                    ++i;
-                    printf("[%d] %s\n", i, jobs[acc].cmd);
+                    printf("[%d] %s\n", ++i, jobs[acc].cmd);
                 }
                 acc++;
             }
