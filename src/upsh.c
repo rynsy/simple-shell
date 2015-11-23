@@ -25,6 +25,7 @@ int jobnum = 0;
 struct JobList {
     pid_t pid;
     char cmd[MAXLINE];
+    int running;
 } jobs[MAXJOBS];
 
 /* function prototypes */
@@ -33,6 +34,8 @@ int parseline(char *buf, char **argv);
 int p3parseline(char *buf, char **argv); /* new parseline function for cs485 project 3 */
 int builtin_command(char **argv);
 int loaded_command(char **argv);
+void child_handler(int sig);
+
 
 int main()
 {
@@ -40,7 +43,7 @@ int main()
 
         while (1) {
                 /* Read */
-                printf(prompt); /* TODO change to global string that represents prompt (changed with setprompt)*/
+                printf("%s",prompt); 
                 fgets(cmdline, MAXLINE, stdin);
                 if (feof(stdin))
                         exit(0);
@@ -55,12 +58,12 @@ int main()
 /* eval - Evaluate a command line */
 void eval(char *cmdline)
 {
-        char *argv[MAXARGS]; /* Argument list execve() */
-        char buf[MAXLINE]; /* Holds modified command line */
-        int bg;          /* Should the job run in bg or fg? */
-        int i;      /*for looping through analyzer functions*/
+        char *argv[MAXARGS];    /* Argument list execve() */
+        char buf[MAXLINE];      /* Holds modified command line */
+        char cmd[MAXLINE];      /* A temporary buffer for making a pretty command for the jobslist */
+        int bg, i=0;            /* Should the job run in bg or fg? */
+        signal(SIGCHLD, child_handler); 
 
-        i = 0;
         while( i < pluggins) {
             pluggin_methods[i] = dlsym(handles[i], "pluggin_method");
             if( strcmp(pluggin_methods[i]->AnalyzerName,"") > 0 ) {
@@ -78,12 +81,22 @@ void eval(char *cmdline)
                 return;  /* Ignore empty lines */
 
         if (!builtin_command(argv)) {
-                if (!loaded_command(argv)) {
-                    strcpy(jobs[jobnum].cmd, cmdline);
+           if (!loaded_command(argv)) {
+                
+                i = 0;
+                strcpy(cmd, "");
+                while( argv[i] != NULL && i < MAXARGS ) {
+                   strcat(cmd, argv[i]);
+                   strcat(cmd, " ");
+                   i++; 
+                }
+                strcpy(jobs[jobnum].cmd, cmd);
                 if ((jobs[jobnum].pid = fork()) == 0) { /* Child runs user job */
                         if (execve(argv[0], argv, environ) < 0) {
                                 printf("%s: Command not found.\n", argv[0]);
                                 exit(0);
+                        } else {
+                                jobs[jobnum].running = 1;
                         }
                 }
 
@@ -93,13 +106,17 @@ void eval(char *cmdline)
                         if (waitpid(jobs[jobnum].pid, &status, 0) < 0)
                                 unix_error("waitfg: waitpid error");
                 }
-                else
+                /*else{ TODO probably need to gut this
+                        jobs[jobnum].running = 1;
                         printf("%d %s", jobs[jobnum].pid, cmdline);
-                    }
+                        printf("\nThere are currently %d jobs running\n", ++jobnum);
+                }*/   
+           }
         }
         return;
 }
 
+/*  If the first arg is a loaded command, run it and return true. */
 int loaded_command(char **argv)
 {
     int i = 0;
@@ -115,19 +132,50 @@ int loaded_command(char **argv)
     return 0;
 }
 
+void child_handler(int sig) 
+{
+    int child_status, i, acc;
+    char buf[128];
+    pid_t pid = wait(&child_status);
+    i = acc = 0;
+
+    while( acc <= jobnum ) {
+        if(jobs[acc].running > 0)
+            i++;
+        if(jobs[acc].pid == pid) {
+           sprintf(buf, "\n[%d] %s - Finished\n", i, jobs[acc].cmd); 
+           Write(1, buf, strlen(buf)); 
+           jobs[acc].running = 0;
+           jobnum--;
+           acc = jobnum + 1;        //break out of the loop. kind of a cheap hack
+        }
+    }
+}
+
 /* If first arg is a builtin command, run it and return true */
 int builtin_command(char **argv)
-{       //TODO fold all quit commands into one if statement,
-        //add clause to call dlclose() as many times as dlopen() succeeds
-        if (!strcmp(argv[0], "quit") || !strcmp(argv[0], "culater")) {
-            exit(0);
+{   
+   
+        if (!strcmp(argv[0], "quit") || !strcmp(argv[0], "culater") || (atoi(argv[0]) == EOF)) {
+            int i = 0;
+
             while( pluggins > 0 ) {
                 if(dlclose(handles[--pluggins]) < 0){
                     fprintf(stderr,"%s\n",dlerror());
                     exit(1);
                 }
-                //printf("Closed pluggin: %d\n", pluggins);
+                printf("Closed pluggin: %d\n", pluggins);
             }
+            while( i < MAXJOBS && 0 < jobnum ) {
+                if(jobs[i].running > 0) {
+                    //send kill signal to each ps
+                    kill(jobs[i].pid, SIGINT);
+                    //printf("Killed job no: %d\n", i);
+                    jobnum--;
+                }
+                i++;
+            }
+            exit(0);
         }
 
         if (!strcmp(argv[0], "&")) /* Ignore singleton & */
@@ -168,25 +216,31 @@ int builtin_command(char **argv)
         } //endif(loadpluggin)
 
         if (!strcmp(argv[0], "bgjobs")) {
-            int i = 0;
-            while( i < jobnum ) {
-                printf("[%d] %s\n", jobs[i].pid, jobs[i].cmd);
-                i++;
+            int i, acc;
+            i = acc = 0;
+            while( acc <= jobnum ) {
+                if(jobs[acc].running > 0) {
+                    ++i;
+                    printf("[%d] %s\n", i, jobs[acc].cmd);
+                }
+                acc++;
             }
             return 1;
-        }
+        } //endif(bgjobs)
         
         if (!strcmp(argv[0], "fg")) {
             if (argv[1] != NULL) {
                 int status, num;
                 num = atoi(argv[1]);
-                if (waitpid(jobs[num].pid, &status, 0) < 0) 
-                    unix_error("waitfg: waitpid error\n");
+                if ( 0 <= num && num <= jobnum ) {
+                    if (waitpid(jobs[num].pid, &status, 0) < 0) 
+                        unix_error("waitfg: waitpid error\n");
+                }
+                jobs[num].running = 0;
             }
             return 1;
-        }
+        } //endif(fg)
 
-        /* TODO figure out where file redirection fits into all this */
         return 0;                 /* Not a builtin command */
 }
 /* $end eval */
