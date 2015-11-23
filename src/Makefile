@@ -2,14 +2,14 @@
 CC = gcc
 CFLAGS = -Wall -g
 INCLUDES = -I.
-LIBS = -lpthread
+LIBS = -lpthread -ldl
 SRCS = upsh.c csapp.c p3extra.c
 OBJS = upsh.o csapp.o p3extra.o
 EXE = upsh
 
 all:	$(EXE)
 
-$(EXE):	$(OBJS) 
+$(EXE):	$(OBJS)
 	$(CC) -o $(EXE) $(CFLAGS) $(INCLUDES) $(OBJS) $(LIBS)
 
 .c.o:
@@ -17,4 +17,3 @@ $(EXE):	$(OBJS)
 
 clean:
 	$(RM) *.o *~ $(EXE)
-
