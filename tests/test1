@@ -1,0 +1,3 @@
+mkdir /tmp/test1
+cd /tmp/test1
+echo "Hello!" > test1.result

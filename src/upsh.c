@@ -102,7 +102,9 @@ void eval(char *cmdline)
                     if (!strcmp(argv[i], "<")) {
                         if(argv[i+1] != NULL) {
                             directIn = 1;
-                            inFile = Open(argv[i++], O_RDONLY, S_IRUSR);
+                            inFile = Open(argv[i+1], O_RDONLY, S_IRUSR);
+                            argv[i] = argv[i+1] = NULL;
+                            i++;
                         } else {
                             unix_error("syntax error: expected '< infilename'");
                         }
@@ -110,7 +112,9 @@ void eval(char *cmdline)
                     } else if (!strcmp(argv[i], ">")) {
                         if(argv[i+1] != NULL) {
                             directOut = 1;
-                            outFile = Open(argv[i++], O_CREAT|O_TRUNC|O_RDWR, S_IRUSR|S_IWUSR);
+                            outFile = Open(argv[i+1], O_CREAT|O_TRUNC|O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
+                            argv[i] = argv[i+1] = NULL;
+                            i++;
                         } else {
                             unix_error("syntax error: expected '> outfilename'");
                         }
@@ -222,7 +226,9 @@ int builtin_command(char **argv)
 
         if (!strcmp(argv[0], "setprompt")) {
                 if (argv[1] != NULL) {
-                        printf("assigning the prompt: %s\n", argv[1]);
+                        if (!strcmp(argv[1], "=") && argv[2] != NULL) {
+                            argv[1] = argv[2]; 
+                        } // if "=" is given with another arg, swap them out
                         strcpy(prompt,argv[1]);
                 }
                 return 1;
