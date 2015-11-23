@@ -13,10 +13,19 @@ void (*analyzer) (char**);
 int pluggins = 0;
 
 struct NewBuiltIn {
-    char CommandName[64];   /* Name of the Built-in command users can type */
-    char FunctionName[64];  /* Name of the function in the code */
-    char AnalyzerName[64];  /* Name of an analyzer function to call on every command */
+    char CommandName[64];   
+    char FunctionName[64]; 
+    char AnalyzerName[64];
 } *pluggin_methods[MAXPLUGGINS];
+
+
+#define MAXJOBS 10
+int jobnum = 0;
+
+struct JobList {
+    pid_t pid;
+    char cmd[MAXLINE];
+} jobs[MAXJOBS];
 
 /* function prototypes */
 void eval(char *cmdline);
@@ -49,7 +58,6 @@ void eval(char *cmdline)
         char *argv[MAXARGS]; /* Argument list execve() */
         char buf[MAXLINE]; /* Holds modified command line */
         int bg;          /* Should the job run in bg or fg? */
-        pid_t pid;       /* Process id */
         int i;      /*for looping through analyzer functions*/
 
         i = 0;
@@ -71,7 +79,8 @@ void eval(char *cmdline)
 
         if (!builtin_command(argv)) {
                 if (!loaded_command(argv)) {
-                if ((pid = fork()) == 0) { /* Child runs user job */
+                    strcpy(jobs[jobnum].cmd, cmdline);
+                if ((jobs[jobnum].pid = fork()) == 0) { /* Child runs user job */
                         if (execve(argv[0], argv, environ) < 0) {
                                 printf("%s: Command not found.\n", argv[0]);
                                 exit(0);
@@ -81,11 +90,11 @@ void eval(char *cmdline)
                 /* Parent waits for foreground job to terminate */
                 if (!bg) {
                         int status;
-                        if (waitpid(pid, &status, 0) < 0)
+                        if (waitpid(jobs[jobnum].pid, &status, 0) < 0)
                                 unix_error("waitfg: waitpid error");
                 }
                 else
-                        printf("%d %s", pid, cmdline);
+                        printf("%d %s", jobs[jobnum].pid, cmdline);
                     }
         }
         return;
@@ -158,13 +167,26 @@ int builtin_command(char **argv)
             }
         } //endif(loadpluggin)
 
+        if (!strcmp(argv[0], "bgjobs")) {
+            int i = 0;
+            while( i < jobnum ) {
+                printf("[%d] %s\n", jobs[i].pid, jobs[i].cmd);
+                i++;
+            }
+            return 1;
+        }
+        
+        if (!strcmp(argv[0], "fg")) {
+            if (argv[1] != NULL) {
+                int status, num;
+                num = atoi(argv[1]);
+                if (waitpid(jobs[num].pid, &status, 0) < 0) 
+                    unix_error("waitfg: waitpid error\n");
+            }
+            return 1;
+        }
+
         /* TODO figure out where file redirection fits into all this */
-        /* TODO I think for bg you need to return 1, but I have no idea.
-           fg will do something similar. I think this plays into bgjobs
-           and I need some C functions that give me processes and let
-           me switch up control. This is probably the hardest part of the
-           whole assignment. Needs to use signal() to communicate between procs
-         */
         return 0;                 /* Not a builtin command */
 }
 /* $end eval */
